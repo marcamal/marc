@@ -1,0 +1,21 @@
+# atlas-mcp dependencies.
+#
+#   cd trading/atlas-mcp
+#   pip install -r requirements.txt
+#
+# Install this in its own virtual environment, separate from the backend's.
+# The bridge is meant to be a small, isolated process that an MCP client
+# launches; it has no reason to share the backend's dependency tree, and
+# keeping them apart means it cannot accidentally import ATLAS internals.
+
+# The MCP Python SDK. Version 2 renamed FastMCP to MCPServer, which is what
+# atlas_mcp/server.py is written against - so the lower bound is not optional.
+mcp>=2.3
+
+# The HTTP client. mcp 2.x already pulls in httpx2 and the code prefers
+# whichever is present, but naming it here means a standalone install works.
+httpx>=0.27
+
+# --- development ------------------------------------------------------------
+pytest>=8.3
+pytest-asyncio>=0.24
