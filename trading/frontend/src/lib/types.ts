@@ -328,6 +328,70 @@ export interface JournalEntry {
   created_at: string;
 }
 
+/**
+ * One answer from the ATLAS assistant.
+ *
+ * `grounded` is the honest flag: true when the answer came from the live ATLAS
+ * context (by a model, or by the deterministic lookup provider, both of which
+ * work only from measured figures). `degraded` means there is no answer and
+ * `answer` is the reason - a missing API key, a rate limit, a spent budget.
+ * The chat labels both rather than presenting them as ordinary replies.
+ */
+export interface AssistantAnswer {
+  answer: string;
+  provider: string;
+  model: string;
+  grounded: boolean;
+  degraded: boolean;
+  conversation_id: string;
+  cost_usd: number | null;
+  session_cost_usd: number;
+  budget_remaining_usd: number | null;
+  context_chars: number;
+  elapsed_seconds: number;
+  note?: string;
+}
+
+export interface AssistantStatus {
+  agent_status: string;
+  provider: {
+    provider: string;
+    model: string;
+    available: boolean;
+    note?: string;
+    has_api_key?: boolean;
+    sdk_installed?: boolean;
+    calls?: number;
+    failures?: number;
+    session_cost_usd?: number;
+    last_error?: string | null;
+  };
+  questions_answered: number;
+  refusals: number;
+  conversations: number;
+  last_error: string | null;
+  session_cost_usd: number;
+  budget_usd: number;
+  budget_remaining_usd: number | null;
+  budget_exhausted: boolean;
+  suggested_questions: string[];
+  /** What the assistant is allowed to do. Rendered so the boundary is visible. */
+  capabilities: {
+    can_read_account: boolean;
+    can_explain_risk: boolean;
+    can_place_orders: boolean;
+    can_change_risk_limits: boolean;
+    can_enable_strategies: boolean;
+    can_release_kill_switch: boolean;
+    holds_broker_credentials: boolean;
+  };
+  setup: {
+    configured: boolean;
+    env_var: string;
+    how_to_enable: string;
+  };
+}
+
 /** A live event pushed over the dashboard websocket. */
 export type SocketMessage =
   | { type: "snapshot"; data: SystemStatus }

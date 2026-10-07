@@ -38,6 +38,13 @@
 
   --radius: 6px;
   --gap: 14px;
+
+  /* Depth. A flat dark UI reads as one undifferentiated sheet; a little
+     elevation separates "a panel" from "the page behind it" without
+     resorting to heavy borders. */
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+  --shadow-lift: 0 2px 4px rgba(0, 0, 0, 0.5), 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+  --glow-accent: 0 0 0 1px var(--accent-dim), 0 0 18px -4px rgba(61, 139, 253, 0.35);
 }
 
 * {
@@ -52,7 +59,14 @@ body,
 }
 
 body {
-  background: var(--bg);
+  /* A very large, very soft radial wash behind everything. It is almost
+     invisible on its own, but it stops the page reading as a flat black
+     rectangle and gives the panels something to sit on. */
+  background:
+    radial-gradient(1200px 600px at 15% -10%, #121a28 0%, transparent 70%),
+    radial-gradient(1000px 500px at 95% 0%, #121622 0%, transparent 65%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--sans);
   font-size: 14px;
@@ -118,8 +132,13 @@ body {
   align-items: center;
   gap: 18px;
   padding: 10px var(--gap);
-  background: var(--bg-raised);
+  /* Semi-transparent plus a blur, so content scrolling underneath is hinted
+     at rather than cut off. Falls back to the solid colour where
+     backdrop-filter is unsupported. */
+  background: rgba(17, 22, 33, 0.86);
+  backdrop-filter: blur(12px) saturate(140%);
   border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03), 0 4px 20px -8px rgba(0, 0, 0, 0.8);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -239,7 +258,8 @@ body {
   display: flex;
   gap: 2px;
   padding: 0 var(--gap);
-  background: var(--bg-raised);
+  background: rgba(14, 19, 28, 0.9);
+  backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
   overflow-x: auto;
   position: sticky;
@@ -269,14 +289,18 @@ body {
 .nav button.active {
   color: var(--text);
   border-bottom-color: var(--accent);
+  /* The active tab glows faintly upward from its underline, which is enough
+     to find it without an extra background block. */
+  box-shadow: inset 0 -14px 16px -14px var(--accent);
 }
 
 /* ---------------------------------------------------------------- panels */
 
 .panel {
-  background: var(--bg-panel);
+  background: linear-gradient(180deg, #10151f 0%, var(--bg-panel) 36%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  box-shadow: var(--shadow);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -289,6 +313,9 @@ body {
   padding: 9px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-raised);
+  /* A one-pixel highlight along the top edge. This is the whole trick behind
+     a panel looking lit rather than drawn. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .panel-title {
@@ -318,10 +345,24 @@ body {
 /* ---------------------------------------------------------------- stats */
 
 .stat {
-  background: var(--bg-panel);
+  position: relative;
+  background: linear-gradient(180deg, #121825 0%, var(--bg-panel) 60%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  padding: 13px 14px 12px;
+  overflow: hidden;
+}
+
+/* A thin accent rule along the top of each headline number, so the four of
+   them read as one instrument cluster rather than four loose boxes. */
+.stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent) 0%, transparent 70%);
+  opacity: 0.55;
 }
 
 .stat-label {
@@ -843,4 +884,645 @@ label.field-label {
   font-size: 11px;
   font-family: var(--mono);
   text-align: center;
+}
+
+/* ============================================================================
+   PHASE 2 — the chart, the heatmap, and the assistant.
+
+   Added as its own section rather than woven into the rules above so the
+   earlier layout stays readable and a revert is one block.
+   ========================================================================= */
+
+/* ---------------------------------------------------------------- layout */
+
+/* Rows that sit directly above another row want a smaller gap below them
+   than the default margin the pages were using inline. */
+.grid.tight {
+  margin-bottom: var(--gap);
+}
+
+/* The chart row: a wide chart beside a narrower column. It collapses to one
+   column on a laptop screen, where 320px of sidebar would squeeze the chart
+   into uselessness. */
+.grid.chart-row {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+}
+
+@media (max-width: 1180px) {
+  .grid.chart-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* A vertical stack of panels that fills its grid cell. */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-height: 0;
+}
+
+.stack > .panel {
+  flex: 1;
+  min-height: 0;
+}
+
+/* A row whose cells can actually shrink. Without `minmax(0, 1fr)` a wide
+   table or a long unbroken string forces the track wider than its share and
+   the grid overflows the page. */
+.grid.cols-2 {
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+}
+
+/* ---------------------------------------------------------------- segmented control */
+
+.seg {
+  display: flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.seg button {
+  background: var(--bg-panel);
+  border: none;
+  border-right: 1px solid var(--border);
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.seg button:last-child {
+  border-right: none;
+}
+
+.seg button:hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.seg button.active {
+  color: #cfe2ff;
+  background: #0d2444;
+}
+
+/* ---------------------------------------------------------------- candle chart */
+
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.chart-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.chart-symbol {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.chart-price {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-change {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-readout {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-empty,
+.chart-foot {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+
+.chart-empty {
+  padding: 40px 12px;
+  text-align: center;
+}
+
+.chart-foot {
+  margin-top: 6px;
+}
+
+.chart-grid {
+  stroke: var(--border);
+  stroke-width: 1;
+  /* Dashed and faint: a reference, not a feature. */
+  stroke-dasharray: 2 4;
+  opacity: 0.55;
+}
+
+.chart-axis {
+  fill: var(--text-faint);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-crosshair {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  pointer-events: none;
+}
+
+.chart-last {
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  opacity: 0.7;
+}
+
+.chart-last.up {
+  stroke: var(--up);
+}
+
+.chart-last.down {
+  stroke: var(--down);
+}
+
+.chart-last-tag.up {
+  fill: #0d3a1f;
+  stroke: var(--up);
+  stroke-width: 1;
+}
+
+.chart-last-tag.down {
+  fill: #3a1010;
+  stroke: var(--down);
+  stroke-width: 1;
+}
+
+.chart-last-label {
+  fill: var(--text);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A candle is its wick (the line) and its body (the rect), coloured
+   together. Hollow bodies were considered and rejected: at 3px wide on a
+   1-minute chart the fill is the only thing you can actually see. */
+.candle.up line,
+.candle.up rect {
+  stroke: var(--up);
+  fill: var(--up);
+}
+
+.candle.down line,
+.candle.down rect {
+  stroke: var(--down);
+  fill: var(--down);
+}
+
+.candle line {
+  stroke-width: 1;
+}
+
+.candle rect {
+  stroke-width: 0.5;
+}
+
+.candle.active rect,
+.candle.active line {
+  /* Brightened rather than outlined: an outline at this size doubles the
+     apparent width of the candle and makes the chart jump. */
+  filter: brightness(1.5);
+}
+
+.vol {
+  opacity: 0.22;
+}
+
+.vol.up {
+  fill: var(--up);
+}
+
+.vol.down {
+  fill: var(--down);
+}
+
+/* ---------------------------------------------------------------- heatmap */
+
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 5px;
+}
+
+.heat-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 8px;
+  border: 1px solid;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: var(--mono);
+  text-align: left;
+  transition: transform 0.08s ease;
+}
+
+.heat-tile:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.18);
+}
+
+.heat-tile.selected {
+  box-shadow: var(--glow-accent);
+}
+
+.heat-symbol {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.heat-change {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.92;
+}
+
+/* ---------------------------------------------------------------- movers */
+
+.movers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.mover-col {
+  padding: 8px 10px;
+  min-width: 0;
+}
+
+.mover-col:first-child {
+  border-right: 1px solid var(--border);
+}
+
+.mover-head {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.mover-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 3px 0;
+  min-width: 0;
+}
+
+.mover-row .symbol {
+  font-size: 11.5px;
+}
+
+.mover-price {
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mover-pct {
+  font-variant-numeric: tabular-nums;
+  min-width: 48px;
+  text-align: right;
+}
+
+/* ---------------------------------------------------------------- clickable rows */
+
+tbody tr.clickable {
+  cursor: pointer;
+}
+
+tbody tr.clickable:hover {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* ---------------------------------------------------------------- mentor notes */
+
+.note {
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.note:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.note-title {
+  font-size: 12px;
+}
+
+.note .block {
+  margin-top: 6px;
+}
+
+/* ---------------------------------------------------------------- AI insight */
+
+.insight-body {
+  font-size: 13px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+  color: var(--text);
+}
+
+.insight-idle p {
+  font-size: 12.5px;
+  line-height: 1.6;
+  margin: 0 0 8px;
+  color: var(--text-dim);
+}
+
+.insight-idle p:last-child {
+  margin-bottom: 0;
+  font-size: 11.5px;
+}
+
+/* ---------------------------------------------------------------- assistant page */
+
+.assistant-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(290px, 330px);
+  gap: var(--gap);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .assistant-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.assistant-side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.chat {
+  /* Tall, because this is the page you read on. Capped in viewport units so
+     the input stays visible without scrolling the whole page. */
+  height: min(58vh, 560px);
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-welcome {
+  margin: auto 0;
+  padding: 10px 4px;
+}
+
+.chat-welcome h3 {
+  font-family: var(--mono);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  margin: 0 0 6px;
+}
+
+.chat-welcome p {
+  font-size: 12.5px;
+  margin: 0 0 14px;
+  line-height: 1.6;
+}
+
+.suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggestion {
+  text-align: left;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent-dim);
+  border-radius: 4px;
+  color: var(--text-dim);
+  padding: 8px 11px;
+  font-family: var(--sans);
+  font-size: 12.5px;
+  cursor: pointer;
+  line-height: 1.45;
+}
+
+.suggestion:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-left-color: var(--accent);
+  color: var(--text);
+}
+
+.suggestion:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Chat bubbles. Asymmetric alignment rather than avatars: with exactly two
+   participants, which side it is on is enough. */
+.bubble {
+  max-width: 86%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: var(--bg-raised);
+}
+
+.bubble.you {
+  align-self: flex-end;
+  background: #0d2444;
+  border-color: var(--accent-dim);
+}
+
+.bubble.atlas {
+  align-self: flex-start;
+}
+
+.bubble.degraded {
+  background: #231905;
+  border-color: #6b4c13;
+}
+
+.bubble-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 5px;
+}
+
+.bubble-who {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.bubble-body {
+  /* `pre-wrap` because the deterministic provider returns aligned tables of
+     real figures, and reflowing those destroys them. */
+  white-space: pre-wrap;
+  font-size: 13px;
+  line-height: 1.62;
+  overflow-wrap: anywhere;
+}
+
+/* The streaming cursor. The only animation on the page besides the LIVE
+   badge, and it earns its place: it is the signal that the answer is still
+   arriving rather than finished and short. */
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--accent);
+  animation: caret-blink 1s step-end infinite;
+}
+
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-raised);
+  align-items: flex-end;
+}
+
+.chat-input textarea {
+  flex: 1;
+  resize: vertical;
+  min-height: 42px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 8px 10px;
+  line-height: 1.5;
+}
+
+.chat-input textarea:focus {
+  outline: none;
+  border-color: var(--accent-dim);
+  box-shadow: var(--glow-accent);
+}
+
+.chat-input textarea:disabled {
+  opacity: 0.6;
+}
+
+/* ---------------------------------------------------------------- the boundary panel */
+
+.boundary-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.boundary-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  padding: 3px 0;
+  color: var(--text-dim);
+}
+
+.boundary-list .mark {
+  font-family: var(--mono);
+  font-weight: 700;
+  width: 12px;
+  flex-shrink: 0;
+  text-align: center;
+}
+
+.boundary-list li.yes .mark {
+  color: var(--up);
+}
+
+.boundary-list li.no .mark {
+  color: var(--text-faint);
+}
+
+/* A capability that is switched ON when it should not be. Should never
+   render; styled loudly so that if it ever does, nobody misses it. */
+.boundary-list li.warnrow {
+  color: var(--warn);
+}
+
+.boundary-list li.warnrow .mark {
+  color: var(--warn);
+}
+
+.boundary-note {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-faint);
+  border-left: 2px solid var(--border-strong);
+  padding-left: 9px;
+  margin-bottom: 12px;
+}
+
+/* A grid row whose cells keep their natural height instead of stretching to
+   match the tallest. For rows pairing a short panel with a long table. */
+.grid.top {
+  align-items: start;
+}
+
+/* The assistant's own bubbles need a touch more definition than the raised
+   background alone gives them, or a long answer reads as loose page text. */
+.bubble.atlas {
+  border-color: var(--border-strong);
+  box-shadow: inset 2px 0 0 var(--accent-dim);
+}
+
+.chart-window {
+  font-size: 10.5px;
 }

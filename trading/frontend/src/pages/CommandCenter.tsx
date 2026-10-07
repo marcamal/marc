@@ -1,37 +1,90 @@
-/** COMMAND CENTER — the page you leave open. */
+/**
+ * COMMAND CENTER — the page you leave open.
+ *
+ * The layout follows the concept the operator asked for, with one change made
+ * on purpose: the chart is the largest element, not a decoration beside a
+ * table. A price chart is the thing you actually look at for hours, and the
+ * previous version gave it a 70-pixel sparkline.
+ *
+ *   row 1   four headline numbers
+ *   row 2   the chart, with an AI briefing and the movers beside it
+ *   row 3   the market heatmap, and the scanner's ranking
+ *   row 4   positions, and recent orders
+ *   row 5   the Mentor's notes, and the live event stream
+ *
+ * Clicking a heatmap tile or a scanner row loads that symbol into the chart,
+ * which is what makes the heatmap useful rather than ornamental.
+ */
 
+import { useState } from "react";
+import { CandleChart } from "../components/CandleChart";
+import { Heatmap, Movers } from "../components/Heatmap";
+import { InsightPanel } from "../components/InsightPanel";
+import {
+  Badge,
+  Empty,
+  ErrorNote,
+  MoneyStat,
+  Panel,
+  ScoreBar,
+  Sparkline,
+  Stat,
+} from "../components/common";
 import { api } from "../lib/api";
-import { compact, direction, money, percent, time } from "../lib/format";
+import { direction, money, percent, time } from "../lib/format";
 import { usePoll } from "../lib/hooks";
 import type { BusEvent, SystemStatus } from "../lib/types";
-import { Badge, Empty, ErrorNote, MoneyStat, Panel, ScoreBar, Sparkline, Stat } from "../components/common";
+
+/** Bar sizes offered above the chart. */
+const TIMEFRAMES = ["1Min", "5Min", "15Min", "1Hour", "1Day"] as const;
 
 export function CommandCenter({
   status,
   events,
+  onOpenAssistant,
 }: {
   status: SystemStatus | null;
   events: BusEvent[];
+  onOpenAssistant?: () => void;
 }) {
+  const [symbol, setSymbol] = useState("SPY");
+  const [timeframe, setTimeframe] = useState<(typeof TIMEFRAMES)[number]>("5Min");
+
   // Short interval for the money, longer for the rest: the portfolio is what
   // the operator stares at, and everything else arrives over the socket.
   const portfolio = usePoll(api.portfolio, 5000);
   const watchlist = usePoll(api.watchlist, 15000);
   const scanner = usePoll(() => api.scannerResults(8), 15000);
-  const orders = usePoll(() => api.orders("all", 10), 10000);
+  const orders = usePoll(() => api.orders("all", 8), 10000);
   const agents = usePoll(() => api.agents(0), 10000);
   const equity = usePoll(() => api.equityCurve(240), 60000);
-  const explanations = usePoll(() => api.explanations(5), 20000);
+  const explanations = usePoll(() => api.explanations(4), 20000);
+
+  // `deps` is what makes the chart reload when the symbol or timeframe
+  // changes; without it `usePoll` would keep calling the first closure.
+  const bars = usePoll(
+    () => api.bars(symbol, timeframe, 120),
+    20000,
+    [symbol, timeframe],
+  );
 
   const book = portfolio.data?.portfolio;
-  const equityPoints = (equity.data?.points ?? []).map((p) => p.equity);
+  const equityPoints = (equity.data?.points ?? []).map((point) => point.equity);
+  const rows = watchlist.data?.rows ?? [];
+
+  // An agent that has never been started reports "created", not "stopped".
+  // Checking only for "stopped" meant the "start it on the Agents page" hint
+  // never appeared on a fresh install — exactly when it is most needed.
+  const scannerIdle =
+    scanner.data !== null &&
+    !["idle", "working", "starting"].includes(scanner.data.agent_status);
 
   return (
     <>
       <Banners status={status} book={book} />
 
-      {/* ---- headline numbers ------------------------------------------ */}
-      <div className="grid cols-4" style={{ marginBottom: "var(--gap)" }}>
+      {/* ---- row 1: headline numbers ----------------------------------- */}
+      <div className="grid cols-4 tight">
         <MoneyStat
           label="Portfolio Value"
           value={book?.equity}
@@ -57,62 +110,70 @@ export function CommandCenter({
 
       <ErrorNote error={portfolio.error} />
 
-      {/* ---- main grid -------------------------------------------------- */}
-      <div className="grid cols-2" style={{ marginBottom: "var(--gap)" }}>
+      {/* ---- row 2: the chart, briefing, movers ------------------------ */}
+      <div className="grid chart-row tight">
         <Panel
-          title="Equity Curve"
-          actions={<span className="faint mono" style={{ fontSize: 10 }}>stored snapshots</span>}
+          title={`${symbol} — ${timeframe}`}
+          actions={
+            <div className="seg">
+              {TIMEFRAMES.map((frame) => (
+                <button
+                  key={frame}
+                  className={frame === timeframe ? "active" : ""}
+                  onClick={() => setTimeframe(frame)}
+                >
+                  {frame}
+                </button>
+              ))}
+            </div>
+          }
         >
-          <Sparkline values={equityPoints} width={520} height={70} />
-          <div className="faint mono" style={{ fontSize: 10.5, marginTop: 6 }}>
-            {equityPoints.length} points · snapshots are written every few minutes
+          {bars.error ? (
+            <div className="error-text">{bars.error}</div>
+          ) : (
+            <CandleChart
+              candles={bars.data?.bars ?? []}
+              symbol={symbol}
+              timeframe={timeframe}
+              width={760}
+              height={300}
+            />
+          )}
+          <div className="faint mono chart-foot">
+            {status?.broker.simulated
+              ? "Simulated prices — no Alpaca credentials configured."
+              : `Feed: ${status?.market_data.feed ?? "—"} · click a heatmap tile or a scanner row to change symbol`}
           </div>
         </Panel>
 
-        <Panel title="Positions" flush>
-          {book && book.positions.length > 0 ? (
-            <table>
-              <thead>
-                <tr>
-                  <th>Symbol</th>
-                  <th className="num">Qty</th>
-                  <th className="num">Entry</th>
-                  <th className="num">Last</th>
-                  <th className="num">P&L</th>
-                  <th className="num">%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {book.positions.map((p) => (
-                  <tr key={p.symbol}>
-                    <td className="symbol">{p.symbol}</td>
-                    <td className="num">{p.quantity}</td>
-                    <td className="num">{money(p.average_entry_price)}</td>
-                    <td className="num">{money(p.current_price)}</td>
-                    <td className={`num ${direction(p.unrealized_pl)}`}>
-                      {money(p.unrealized_pl)}
-                    </td>
-                    <td className={`num ${direction(p.unrealized_pl_pct)}`}>
-                      {percent(p.unrealized_pl_pct)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <Empty>No open positions.</Empty>
-          )}
-        </Panel>
+        <div className="stack">
+          <InsightPanel onOpenAssistant={onOpenAssistant} />
+          <Panel title="Movers" flush>
+            <Movers rows={rows} limit={4} />
+          </Panel>
+        </div>
       </div>
 
-      <div className="grid cols-2" style={{ marginBottom: "var(--gap)" }}>
+      {/* ---- row 3: heatmap and scanner -------------------------------- */}
+      <div className="grid cols-2 tight">
+        <Panel
+          title="Market Heatmap"
+          actions={
+            <span className="faint mono" style={{ fontSize: 10 }}>
+              {rows.length} symbols · colour saturates at ±3%
+            </span>
+          }
+        >
+          <Heatmap rows={rows} onSelect={setSymbol} selected={symbol} />
+        </Panel>
+
         <Panel
           title={`Top Opportunities — ${scanner.data?.universe ?? ""}`}
           flush
           actions={
             <span className="faint mono" style={{ fontSize: 10 }}>
-              {scanner.data?.agent_status === "stopped"
-                ? "scanner stopped"
+              {scannerIdle
+                ? "scanner not running"
                 : `${scanner.data?.results.length ?? 0} ranked`}
             </span>
           }
@@ -130,17 +191,22 @@ export function CommandCenter({
                 </tr>
               </thead>
               <tbody>
-                {scanner.data.results.map((r) => (
-                  <tr key={r.symbol}>
-                    <td className="faint">{r.rank}</td>
-                    <td className="symbol">{r.symbol}</td>
-                    <td className="num">{money(r.price)}</td>
-                    <td className={`num ${direction(r.percent_change)}`}>
-                      {percent(r.percent_change)}
+                {scanner.data.results.map((result) => (
+                  <tr
+                    key={result.symbol}
+                    className="clickable"
+                    onClick={() => setSymbol(result.symbol)}
+                    title={`Show ${result.symbol} on the chart`}
+                  >
+                    <td className="faint">{result.rank}</td>
+                    <td className="symbol">{result.symbol}</td>
+                    <td className="num">{money(result.price)}</td>
+                    <td className={`num ${direction(result.percent_change)}`}>
+                      {percent(result.percent_change)}
                     </td>
-                    <td className="num">{r.relative_volume?.toFixed(2) ?? "—"}</td>
+                    <td className="num">{result.relative_volume?.toFixed(2) ?? "—"}</td>
                     <td>
-                      <ScoreBar score={r.score} />
+                      <ScoreBar score={result.score} />
                     </td>
                   </tr>
                 ))}
@@ -148,70 +214,60 @@ export function CommandCenter({
             </table>
           ) : (
             <Empty>
-              {scanner.data?.agent_status === "stopped"
-                ? "Scanner is stopped. Start it on the Agents page."
-                : "No candidates yet."}
+              {scannerIdle
+                ? "The Market Scanner is not running. Start it on the Agents page and it will rank the watchlist."
+                : "No candidates ranked yet. The scanner runs on its own interval."}
             </Empty>
-          )}
-        </Panel>
-
-        <Panel title="Watchlist" flush scroll>
-          {watchlist.data && watchlist.data.rows.length > 0 ? (
-            <table>
-              <thead>
-                <tr>
-                  <th>Symbol</th>
-                  <th className="num">Price</th>
-                  <th className="num">Change</th>
-                  <th className="num">Volume</th>
-                </tr>
-              </thead>
-              <tbody>
-                {watchlist.data.rows.map((row) => (
-                  <tr key={row.symbol}>
-                    <td className="symbol">{row.symbol}</td>
-                    <td className="num">{money(row.price)}</td>
-                    <td className={`num ${direction(row.percent_change)}`}>
-                      {percent(row.percent_change)}
-                    </td>
-                    <td className="num faint">{compact(row.volume)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <Empty>No watchlist data.</Empty>
           )}
         </Panel>
       </div>
 
-      <div className="grid cols-2" style={{ marginBottom: "var(--gap)" }}>
-        <Panel title="Agent Activity" flush scroll>
-          {agents.data ? (
+      {/* ---- row 4: positions and orders ------------------------------- */}
+      <div className="grid cols-2 tight">
+        <Panel
+          title="Positions"
+          flush
+          actions={
+            <span className="faint mono" style={{ fontSize: 10 }}>
+              {book ? `${money(book.unrealized_pl)} unrealised` : ""}
+            </span>
+          }
+        >
+          {book && book.positions.length > 0 ? (
             <table>
               <thead>
                 <tr>
-                  <th>Agent</th>
-                  <th>Status</th>
-                  <th>Doing</th>
+                  <th>Symbol</th>
+                  <th className="num">Qty</th>
+                  <th className="num">Entry</th>
+                  <th className="num">Last</th>
+                  <th className="num">P&L</th>
+                  <th className="num">%</th>
                 </tr>
               </thead>
               <tbody>
-                {agents.data.agents.map((agent) => (
-                  <tr key={agent.id}>
-                    <td className="symbol">{agent.name}</td>
-                    <td>
-                      <Badge tone={agent.status}>{agent.status}</Badge>
+                {book.positions.map((position) => (
+                  <tr
+                    key={position.symbol}
+                    className="clickable"
+                    onClick={() => setSymbol(position.symbol)}
+                  >
+                    <td className="symbol">{position.symbol}</td>
+                    <td className="num">{position.quantity}</td>
+                    <td className="num">{money(position.average_entry_price)}</td>
+                    <td className="num">{money(position.current_price)}</td>
+                    <td className={`num ${direction(position.unrealized_pl)}`}>
+                      {money(position.unrealized_pl)}
                     </td>
-                    <td className="faint" style={{ whiteSpace: "normal" }}>
-                      {agent.current_task ?? "—"}
+                    <td className={`num ${direction(position.unrealized_pl_pct)}`}>
+                      {percent(position.unrealized_pl_pct)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <Empty>Loading agents…</Empty>
+            <Empty>No open positions. The account is entirely in cash.</Empty>
           )}
         </Panel>
 
@@ -251,31 +307,76 @@ export function CommandCenter({
         </Panel>
       </div>
 
+      {/* ---- row 5: equity, agents -------------------------------------
+          `top` rather than the default stretch: the agent table is ten rows
+          tall and the equity panel is one sparkline, so stretching left a
+          400px box containing the words "not enough history yet". */}
+      <div className="grid cols-2 tight top">
+        <Panel
+          title="Equity Curve"
+          actions={
+            <span className="faint mono" style={{ fontSize: 10 }}>
+              {equityPoints.length} stored snapshots
+            </span>
+          }
+        >
+          <Sparkline values={equityPoints} width={520} height={78} />
+          <div className="faint mono chart-foot">
+            Snapshots are written every few minutes, so this fills in over time.
+          </div>
+        </Panel>
+
+        <Panel title="Agent Activity" flush scroll>
+          {agents.data ? (
+            <table>
+              <thead>
+                <tr>
+                  <th>Agent</th>
+                  <th>Status</th>
+                  <th>Doing</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agents.data.agents.map((agent) => (
+                  <tr key={agent.id}>
+                    <td className="symbol">{agent.name}</td>
+                    <td>
+                      <Badge tone={agent.status}>{agent.status}</Badge>
+                    </td>
+                    <td className="faint" style={{ whiteSpace: "normal" }}>
+                      {agent.current_task ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <Empty>Loading agents…</Empty>
+          )}
+        </Panel>
+      </div>
+
+      {/* ---- row 6: mentor and events ---------------------------------- */}
       <div className="grid cols-2">
         <Panel
           title="Mentor — What Just Happened"
-          actions={<span className="faint mono" style={{ fontSize: 10 }}>teaching notes</span>}
+          actions={
+            <span className="faint mono" style={{ fontSize: 10 }}>
+              deterministic teaching notes
+            </span>
+          }
           scroll
         >
           {explanations.data && explanations.data.explanations.length > 0 ? (
             explanations.data.explanations.map((note, index) => (
-              <div
-                key={`${note.timestamp}-${index}`}
-                style={{
-                  marginBottom: 12,
-                  paddingBottom: 10,
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
+              <div className="note" key={`${note.timestamp}-${index}`}>
                 <div className="row between">
-                  <strong className="mono" style={{ fontSize: 12 }}>
-                    {note.title}
-                  </strong>
+                  <strong className="mono note-title">{note.title}</strong>
                   <span className="faint mono" style={{ fontSize: 10 }}>
                     {time(note.timestamp)}
                   </span>
                 </div>
-                <pre className="block" style={{ marginTop: 6 }}>{note.body}</pre>
+                <pre className="block">{note.body}</pre>
               </div>
             ))
           ) : (

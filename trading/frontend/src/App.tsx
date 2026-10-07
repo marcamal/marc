@@ -11,6 +11,7 @@ import { Header } from "./components/Header";
 import { api } from "./lib/api";
 import { useEventSocket, usePoll } from "./lib/hooks";
 import { Agents } from "./pages/Agents";
+import { Assistant } from "./pages/Assistant";
 import { CommandCenter } from "./pages/CommandCenter";
 import { Journal } from "./pages/Journal";
 import { Portfolio } from "./pages/Portfolio";
@@ -21,6 +22,7 @@ import { System } from "./pages/System";
 
 const PAGES = [
   { id: "command", label: "Command Center" },
+  { id: "assistant", label: "Assistant" },
   { id: "scanner", label: "Scanner" },
   { id: "agents", label: "Agents" },
   { id: "strategies", label: "Strategies" },
@@ -96,8 +98,13 @@ export function App() {
         ) : null}
 
         {page === "command" ? (
-          <CommandCenter status={current} events={socket.events} />
+          <CommandCenter
+            status={current}
+            events={socket.events}
+            onOpenAssistant={() => setPage("assistant")}
+          />
         ) : null}
+        {page === "assistant" ? <Assistant /> : null}
         {page === "scanner" ? <Scanner /> : null}
         {page === "agents" ? <Agents /> : null}
         {page === "strategies" ? <Strategies /> : null}

@@ -15,6 +15,8 @@ import type {
   AgentDescriptor,
   AgentGraphEdge,
   AgentGraphNode,
+  AssistantAnswer,
+  AssistantStatus,
   BrokerCapabilities,
   BusEvent,
   JournalEntry,
@@ -235,6 +237,37 @@ export const api = {
       summary: string;
       note: string;
     }>("/risk/check", payload),
+
+  // --- the assistant -----------------------------------------------------
+  // Text in, text out. There is no endpoint here that lets the AI act: it
+  // cannot place an order, change a limit, enable a strategy or release the
+  // kill switch. See backend/app/ai/base.py.
+  ask: (question: string, conversationId = "dashboard", sections?: string[]) =>
+    post<AssistantAnswer>("/assistant/ask", {
+      question,
+      conversation_id: conversationId,
+      sections,
+    }),
+  assistantStatus: () => request<AssistantStatus>("/assistant/status"),
+  assistantSuggestions: () => request<{ questions: string[] }>("/assistant/suggestions"),
+  /** Exactly what the model is shown. Worth being able to read. */
+  assistantContext: (sections?: string) =>
+    request<{ context: string; characters: number; sections: string[]; note: string }>(
+      `/assistant/context${sections ? `?sections=${encodeURIComponent(sections)}` : ""}`,
+    ),
+  assistantReset: (conversationId = "dashboard", budget = false) =>
+    post<{ cleared: boolean; budget_reset: boolean; session_cost_usd: number }>(
+      `/assistant/reset?conversation_id=${encodeURIComponent(conversationId)}&budget=${budget}`,
+    ),
+  /**
+   * The AI's written briefing.
+   *
+   * A POST because it spends tokens: a GET that costs money is a trap for
+   * anything that prefetches. Named `aiBriefing` to keep it distinct from
+   * `briefing` above, which is the Orchestrator's deterministic summary and
+   * costs nothing.
+   */
+  aiBriefing: () => post<AssistantAnswer>("/assistant/briefing"),
 
   // --- journal / mentor --------------------------------------------------
   journal: (limit = 25, search?: string) =>
