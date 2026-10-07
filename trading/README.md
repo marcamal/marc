@@ -481,6 +481,12 @@ that every one is refused.
 
 ## Troubleshooting
 
+**Start here: double-click `Check Setup.bat`.**
+
+It verifies Python, Node, the project files, the installed packages, your
+Alpaca key, the kill switch and the ports — and tells you exactly what is
+wrong and how to fix it. Most problems below are diagnosed by it automatically.
+
 **`python` is not recognised**
 Python was installed without "Add to PATH". Re-run the installer, choose
 *Modify*, and tick it.

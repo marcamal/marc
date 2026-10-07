@@ -88,7 +88,15 @@ EMERGENCY STOP
 
 SOMETHING IS WRONG
 ------------------
-  Instead of the Desktop icon, double-click "Start ATLAS.bat" in this
-  folder. It stays open and shows the error message.
+  Double-click:
+
+      Check Setup.bat
+
+  It checks everything ATLAS needs and tells you exactly what is
+  missing and how to fix it. Run this FIRST whenever something
+  does not work.
+
+  You can also double-click "Start ATLAS.bat" instead of the Desktop
+  icon - it stays open and shows the error message.
 
   More help: open README.md
