@@ -259,27 +259,56 @@ You almost certainly do not need this yet.
 
 ## Running ATLAS
 
-You need **two PowerShell windows**: one for the backend, one for the frontend.
+### The easy way — one icon
 
-**Window 1 — the backend:**
+1. Open the `trading` folder in Explorer.
+2. Double-click **`Create Desktop Icon.bat`** — once, ever.
+3. An **ATLAS** icon appears on your Desktop.
 
-```powershell
-cd path\to\trading
-.\scripts\start-backend.ps1
+From now on: **double-click the ATLAS icon.**
+
+That one icon does everything — the first-time setup if it has not run yet,
+starts the backend, starts the dashboard, waits until both are really
+responding, and opens your browser at the right page.
+
+A black window stays open while ATLAS runs. It shows:
+
+```
+   ATLAS IS RUNNING
+
+   Dashboard :  http://localhost:5173
+   API docs  :  http://127.0.0.1:8000/docs
+   Mode      :  PAPER  (simulated data — no Alpaca keys yet)
+
+   Press  Q  to stop ATLAS.
+   Press  D  to reopen the dashboard.
 ```
 
-Wait for `ATLAS startup complete`.
+Press **Q**, or just close that window, and everything stops cleanly.
 
-**Window 2 — the dashboard:**
+> Don't want a Desktop icon? Double-click **`Start ATLAS.bat`** inside the
+> `trading` folder instead. It is the same thing.
+>
+> Want it on the taskbar? Right-click the Desktop icon → *Pin to Taskbar*.
+
+**The very first start takes a few minutes** — it is downloading Python and
+Node packages. Every start after that takes a few seconds.
+
+### The manual way — two windows
+
+If you prefer to see the backend and the dashboard separately:
 
 ```powershell
+# Window 1
+cd path\to\trading
+.\scripts\start-backend.ps1
+
+# Window 2
 cd path\to\trading
 .\scripts\start-frontend.ps1
 ```
 
-Then open <http://localhost:5173> in your browser.
-
-To stop either one, click its window and press `Ctrl+C`.
+Then open <http://localhost:5173>. `Ctrl+C` stops each one.
 
 ### The equivalent raw commands
 
@@ -461,9 +490,14 @@ Python was installed without "Add to PATH". Re-run the installer, choose
 Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 
+**Nothing happens when I double-click the ATLAS icon**
+The window may have opened and closed too fast to read. Open the `trading`
+folder and double-click `Start ATLAS.bat` directly — it pauses on an error so
+you can read the message.
+
 **The dashboard says BACKEND UNREACHABLE**
-The backend is not running, or crashed. Check its window. Start it with
-`.\scripts\start-backend.ps1`.
+The backend is not running, or crashed. Look for the minimised window in your
+taskbar, or just close the ATLAS window and start it again.
 
 **`Alpaca rejected the credentials`**
 Almost always live keys in a paper config. Go back to the Alpaca dashboard,

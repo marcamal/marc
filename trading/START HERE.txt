@@ -1,0 +1,94 @@
+===============================================================================
+  ATLAS  -  how to start
+===============================================================================
+
+You only need to do steps 1 and 2 once.
+
+
+STEP 1 - install Python
+-----------------------
+  Go to:  https://www.python.org/downloads/
+  Download the Windows installer and run it.
+
+  *** TICK THE BOX "Add python.exe to PATH" ON THE FIRST SCREEN ***
+
+  This box is easy to miss and nothing works without it.
+  Then click "Install Now".
+
+
+STEP 2 - install Node.js
+------------------------
+  Go to:  https://nodejs.org/
+  Download the big green "LTS" button and run it.
+  Click Next through everything.
+
+  Now RESTART YOUR COMPUTER. (Windows needs this so it finds the
+  two programs you just installed.)
+
+
+STEP 3 - make the ATLAS icon
+----------------------------
+  In this folder, double-click:
+
+      Create Desktop Icon.bat
+
+  An ATLAS icon appears on your Desktop.
+
+
+STEP 4 - start ATLAS
+--------------------
+  Double-click the ATLAS icon on your Desktop.
+
+  The first time takes a few minutes - it is downloading the parts it
+  needs. After that it starts in a few seconds.
+
+  Your browser opens automatically at the dashboard.
+
+  A black window stays open while ATLAS runs.
+  Press Q in that window, or close it, to stop ATLAS.
+
+
+===============================================================================
+  THAT'S IT. ATLAS now runs on SIMULATED data - fake prices, fake money.
+  Nothing is connected to a real broker yet. You can click around safely.
+===============================================================================
+
+
+WHEN YOU WANT REAL (PAPER) MARKET DATA
+--------------------------------------
+  1. Sign up at  https://alpaca.markets/
+  2. Log in at   https://app.alpaca.markets/
+  3. TOP LEFT: switch the toggle to "Paper".
+     This is important. Paper keys and Live keys are different keys.
+  4. Find "API Keys" on the right, click "Generate New Key".
+  5. Copy BOTH values. The secret is only shown once.
+  6. In this folder, open the file ".env" with Notepad and paste them:
+
+         ALPACA_API_KEY=PK7XXXXXXXXXXXXXXXXX
+         ALPACA_SECRET_KEY=your_secret_here
+
+  7. Save, then stop and start ATLAS again.
+
+  The top of the dashboard changes from SIMULATED to PAPER MODE.
+
+  Paper trading = real prices, fake money. Nothing can cost you anything.
+
+
+EMERGENCY STOP
+--------------
+  Click the red KILL SWITCH button at the top right of the dashboard.
+
+  Or, if the dashboard is not working: go into the "data" folder,
+  right-click -> New -> Text Document, and name it exactly
+
+      KILL_SWITCH
+
+  All trading stops until you delete that file.
+
+
+SOMETHING IS WRONG
+------------------
+  Instead of the Desktop icon, double-click "Start ATLAS.bat" in this
+  folder. It stays open and shows the error message.
+
+  More help: open README.md
