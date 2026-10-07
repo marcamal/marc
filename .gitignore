@@ -1,0 +1,18 @@
+# Distribution archives built for download.
+#
+# These are generated from the tracked source in trading/, so committing one
+# would store a second, binary copy that goes stale the moment the code
+# changes. Rebuild instead:
+#
+#   zip -rq ATLAS-trading-system.zip trading/ \
+#     -x "trading/frontend/node_modules/*" -x "trading/backend/.venv/*" \
+#     -x "*/__pycache__/*" -x "trading/.env" -x "trading/data/atlas.db*"
+#
+ATLAS-trading-system.zip
+*.zip
+
+# Secrets, anywhere in the tree. The project-level trading/.gitignore already
+# covers this; repeated here so a stray .env outside that folder is caught too.
+.env
+.env.*
+!.env.example
