@@ -27,8 +27,9 @@ The architecture, the safety layer, and one end-to-end path proven.
 - [x] Portfolio reconciliation where broker state wins
 - [x] One example strategy, disabled by default
 - [x] SQLite persistence with retention policy and audit trail
-- [x] React/TypeScript dashboard, eight pages
-- [x] 419 automated tests, including adversarial risk-bypass tests
+- [x] React/TypeScript dashboard, nine pages, with candlestick charts and a market heatmap
+- [x] AI assistant over read-only state, plus an MCP bridge for OpenClaw
+- [x] 628 automated tests, including adversarial risk-bypass and AI-boundary tests
 - [x] Offline simulator so everything runs without credentials
 
 ---
@@ -117,24 +118,46 @@ assuming.
 
 Deliberately late. The deterministic core had to be correct first.
 
-### 4.1 Provider interface
-A generic `AIProvider` with adapters for Anthropic, OpenAI and local models. No
-deep coupling to one vendor.
+### 4.1 Provider interface — **done**
+`app/ai/base.py` defines a text-in, text-out `AIProvider`. Claude is
+implemented; `NullProvider` answers deterministically from ATLAS's own figures
+so the system is fully usable with no key. Another backend is a new subclass
+and a line in the factory, with no change anywhere else.
 
-### 4.2 Where a model may and may not act
+### 4.2 Where a model may and may not act — **enforced**
 
-**May:** summarise news and filings, generate hypotheses, classify documents,
-explain a trade or a rejection in better prose than the current templates,
-investigate anomalies, draft trade reviews.
+**May:** explain a trade or a rejection, answer questions about the account,
+write a briefing, teach.
 
 **May not:** evaluate risk, size a position, place or modify an order, hold
-credentials, or change its own risk rules. A model may *propose* an improvement;
-a human reviews and merges it.
+credentials, or change a risk rule.
 
-### 4.3 Better mentoring
-The Mentor currently uses deterministic templates — correct every time, but
-stiff. An LLM layered on top of the assembled facts (never instead of them)
-would read far more naturally.
+This is no longer a policy statement. The Assistant Agent is constructed with
+no broker, no risk evaluator and no strategy registry; no tool definitions are
+sent with any request; and nothing parses the model's output. Tests assert all
+three. See `docs/AI-AND-OPENCLAW.md`.
+
+### 4.3 The conversational assistant — **done**
+An Assistant page with streaming answers, visible per-answer cost, a hard
+session spend cap, and an on-screen capability panel read live from the backend
+so it cannot drift from the truth.
+
+### 4.4 ATLAS from your phone — **done**
+`atlas-mcp/` exposes ATLAS over MCP for OpenClaw and other clients, with a
+deliberately asymmetric allowlist: read everything, check a hypothetical trade,
+engage the kill switch — but never place an order, change a limit, enable a
+strategy or *release* the kill switch.
+
+### 4.5 Still to do
+- **News, filings and sentiment through the same interface.** The provider
+  exists; the research agents that would feed it do not. Those are Phase 3.
+- **Better mentoring.** The Mentor still uses deterministic templates — correct
+  every time, but stiff. An LLM layered on top of the assembled facts (never
+  instead of them) would read far more naturally. The facts assembly is already
+  separated from the wording, so this is a contained change.
+- **A local model option.** `AIProvider` makes it a subclass. Worth doing for
+  anyone who would rather no account data left the machine at all, though
+  `ATLAS_AI_PROVIDER=none` already covers the strict version of that.
 
 ---
 

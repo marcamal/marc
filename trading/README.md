@@ -26,12 +26,13 @@ It runs entirely on your own PC. Nothing is hosted, nothing is shared.
 4. [Getting your Alpaca paper keys](#getting-your-alpaca-paper-keys)
 5. [Running ATLAS](#running-atlas)
 6. [Using the dashboard](#using-the-dashboard)
-7. [Configuration](#configuration)
-8. [Safety](#safety)
-9. [Switching modes](#switching-modes)
-10. [Running the tests](#running-the-tests)
-11. [Troubleshooting](#troubleshooting)
-12. [Roadmap](#roadmap)
+7. [The AI assistant](#the-ai-assistant)
+8. [Configuration](#configuration)
+9. [Safety](#safety)
+10. [Switching modes](#switching-modes)
+11. [Running the tests](#running-the-tests)
+12. [Troubleshooting](#troubleshooting)
+13. [Roadmap](#roadmap)
 
 ---
 
@@ -56,8 +57,10 @@ Phase 1 is complete and working:
 | Global kill switch (file-based **and** in the UI) | ✅ |
 | One example strategy (disabled by default) | ✅ |
 | SQLite database + decision audit trail | ✅ |
-| React/TypeScript dashboard | ✅ |
-| 419 automated tests | ✅ |
+| React/TypeScript dashboard with candlestick charts and a market heatmap | ✅ |
+| AI assistant that explains your account (optional, works without a key) | ✅ |
+| MCP bridge, so OpenClaw can read ATLAS from your phone | ✅ |
+| 628 automated tests | ✅ |
 | Backtesting engine | Phase 2 |
 | News / fundamentals / sentiment / macro agents | Phase 3 |
 | Live trading | Only after months of paper results |
@@ -118,7 +121,8 @@ Full detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 trading/
 ├── backend/
 │   ├── app/
-│   │   ├── agents/        the agent framework and the nine agents
+│   │   ├── agents/        the agent framework and the ten agents
+│   │   ├── ai/            the AI provider interface and the read-only context
 │   │   ├── api/           FastAPI routes
 │   │   ├── brokers/       Alpaca adapter + offline simulator
 │   │   ├── config/        settings (.env) and YAML validation
@@ -132,11 +136,12 @@ trading/
 │   │   ├── risk/          the rules engine and the kill switch
 │   │   ├── strategies/    strategy framework + one example
 │   │   └── main.py        the entry point
-│   └── tests/             419 tests
+│   └── tests/             536 tests
 ├── frontend/              React + TypeScript dashboard
+├── atlas-mcp/             the MCP bridge: ATLAS from OpenClaw or your phone
 ├── config/                risk.yaml, scanner.yaml, strategies.yaml, agents.yaml
 ├── scripts/               Windows and make helpers
-├── docs/                  ARCHITECTURE.md, ROADMAP.md
+├── docs/                  ARCHITECTURE.md, AI-AND-OPENCLAW.md, ROADMAP.md
 ├── data/                  the SQLite database and the kill switch file
 └── logs/                  structured logs
 ```
@@ -332,7 +337,8 @@ The backend's interactive API documentation is at
 
 | Page | What it is for |
 |---|---|
-| **Command Center** | The page to leave open. Portfolio value, P&L, buying power, positions, top candidates, watchlist, agent activity, orders and live events. |
+| **Command Center** | The page to leave open. Portfolio value, P&L, buying power, a candlestick chart, a market heatmap, movers, top candidates, positions, agent activity, orders and live events. |
+| **Assistant** | Ask about your account in plain language. See [The AI assistant](#the-ai-assistant). |
 | **Scanner** | The ranked universe with every metric, and what was filtered out and why. |
 | **Agents** | The pipeline diagram and a card per agent: what it is doing, its inputs and outputs, its logs. Start and stop agents here. |
 | **Strategies** | Enable or disable a strategy for this session, and inspect its parameters. |
@@ -349,6 +355,65 @@ It places no order, ever.
 
 It is the fastest way to build intuition for what the limits actually permit.
 Try entering a position ten times too large and read what comes back.
+
+---
+
+## The AI assistant
+
+ATLAS has a personal assistant. Open the **Assistant** page and ask about your
+own account in plain language:
+
+> *What is in my account right now, and what is it worth?*
+> *Has anything been blocked by the Risk Officer, and why?*
+> *Explain my risk limits as if I were new to this.*
+
+**It works out of the box with no API key.** Without one, ATLAS answers by
+looking up the part of its own live state your question is about, so every
+number is real — you just do not get reasoning. Add an Anthropic key to
+`trading/.env` and answers become conversational and teach:
+
+```ini
+ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Cost is about half a cent to two cents per question, shown on screen for each
+answer, and capped at `$2.00` per session by default so nothing can quietly
+run up a bill.
+
+### The AI cannot trade
+
+This is enforced in code, not asked for in a prompt:
+
+- The Assistant Agent is built with **no broker, no risk evaluator and no
+  strategy registry**. There is nothing on it that could place an order, and a
+  test asserts those attributes are absent rather than merely unused.
+- **No tools are sent with any request.** The usual way an AI assistant gets
+  hijacked is hostile text telling it to call a tool. There are no tools to
+  call, so the worst a prompt injection achieves is a false sentence in a chat
+  bubble next to a dashboard showing the truth.
+- Risk rules stay deterministic code under hard-coded ceilings. The AI can
+  explain a limit; it has no mechanism to change one.
+- The snapshot it is shown contains **no credentials, no database URL and no
+  file paths** — and `GET /api/assistant/context` lets you read exactly what
+  is sent.
+
+### ATLAS from your phone, with OpenClaw
+
+`atlas-mcp/` is a bridge that lets [OpenClaw](https://github.com/openclaw/openclaw)
+— or Claude Desktop, or any MCP client — read ATLAS, so you can check the
+account from WhatsApp or Telegram.
+
+It is deliberately asymmetric:
+
+> **You can stop trading from your phone. You cannot start it.**
+
+Reading everything is allowed. Checking a hypothetical trade against your
+risk rules is allowed. Engaging the kill switch is allowed. Placing an order,
+changing a limit, enabling a strategy and *releasing* the kill switch are not.
+
+**Full guide: [`docs/AI-AND-OPENCLAW.md`](docs/AI-AND-OPENCLAW.md)** — setup,
+costs, the whole permission model, and an honest account of what this does
+not give you.
 
 ---
 
@@ -467,15 +532,35 @@ cd trading\backend
 python -m pytest -q
 ```
 
-419 tests, roughly 20 seconds. They never touch the network and never place a
+536 tests, roughly 25 seconds. They never touch the network and never place a
 brokerage order — everything runs against the built-in simulator, and a fixture
-strips Alpaca credentials from the environment so the suite cannot reach a
-broker even by accident.
+strips every credential from the environment (Alpaca *and* Anthropic) so the
+suite cannot reach a broker or a paid API even by accident.
 
-`backend/tests/test_risk_bypass.py` is worth reading. It deliberately tries to
-smuggle bad trades past the Risk Officer — oversized positions, stops on the
-wrong side of entry, stale quotes, naked shorts, expired proposals — and asserts
-that every one is refused.
+The MCP bridge has its own suite, since it has its own virtual environment:
+
+```powershell
+cd trading\atlas-mcp
+.venv\Scripts\python -m pytest
+```
+
+92 more tests, under a second, no network needed. The backend suite also
+imports the bridge's allowlist and checks it from the other side, so the
+important guarantee is verified even if you only ever run one suite.
+
+Three test files are worth reading:
+
+- `backend/tests/test_risk_bypass.py` deliberately tries to smuggle bad trades
+  past the Risk Officer — oversized positions, stops on the wrong side of
+  entry, stale quotes, naked shorts, expired proposals — and asserts that
+  every one is refused.
+- `backend/tests/test_ai.py` asserts the AI boundary: that the context carries
+  no credentials, that the assistant holds nothing it could trade with, and
+  that a dead or expensive model degrades into an explanation rather than an
+  exception.
+- `atlas-mcp/tests/test_permissions.py` asserts what the phone bridge must
+  never be able to do, including that path traversal cannot smuggle a write
+  past a read.
 
 ---
 

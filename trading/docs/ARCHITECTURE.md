@@ -238,7 +238,7 @@ line vanished — risk veto messages were being silently dropped. The guard now
 rejects such a subclass at import time, and only the five documented hooks are
 overridable.
 
-The nine agents:
+The ten agents:
 
 | Agent | Role | Protected |
 |---|---|---|
@@ -251,6 +251,7 @@ The nine agents:
 | **Risk** | **Veto power. Owns the kill switch.** | ✅ |
 | **Execution** | **The only component that may order.** | ✅ |
 | Mentor | Explains decisions and writes trade reviews. | |
+| Assistant | Answers questions from read-only state. Holds nothing it could act with. | |
 
 Risk and Execution are *protected*: the manager refuses to stop them while ATLAS
 runs. Stopping Risk would leave Execution without veto authority — and

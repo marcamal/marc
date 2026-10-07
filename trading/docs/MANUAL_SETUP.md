@@ -70,7 +70,7 @@ cd backend
 python -m pytest -q
 ```
 
-419 tests should pass in about 20 seconds. They never touch the network.
+536 tests should pass in about 25 seconds. They never touch the network.
 
 A quick manual check that the backend is alive:
 
