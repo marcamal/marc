@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from app.agents.assistant_agent import AssistantAgent
 from app.agents.base import Agent
 from app.agents.execution_agent import ExecutionAgent
 from app.agents.manager import AgentManager, AgentManagerError
@@ -39,6 +40,7 @@ AGENT_TYPES: dict[str, type[Agent]] = {
     "risk": RiskAgent,
     "execution": ExecutionAgent,
     "mentor": MentorAgent,
+    "assistant": AssistantAgent,
 }
 
 
@@ -85,6 +87,7 @@ __all__ = [
     "Agent",
     "AgentManager",
     "AgentManagerError",
+    "AssistantAgent",
     "ExecutionAgent",
     "MarketDataAgent",
     "MentorAgent",

@@ -109,3 +109,18 @@ agents:
       explain_signals: true
       explain_rejections: true
       write_trade_reviews: true
+
+  - id: assistant
+    name: "Assistant"
+    role: "Answers your questions about the account from read-only ATLAS state. Cannot trade."
+    type: assistant
+    autostart: true
+    config:
+      # Nothing to configure here: the AI settings live in .env
+      # (ATLAS_AI_PROVIDER, ATLAS_AI_MODEL, ATLAS_AI_EFFORT,
+      # ATLAS_AI_SESSION_BUDGET_USD) because they involve a secret.
+      #
+      # This agent is deliberately powerless. It receives no broker, no risk
+      # evaluator and no strategy registry, so there is no configuration that
+      # could let it place an order or change a limit.
+      {}

@@ -47,10 +47,17 @@ def _configure_test_logging() -> None:
 
 @pytest.fixture(autouse=True)
 def _no_real_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Strip broker credentials from the environment for every test.
+    """Strip every credential from the environment for every test.
 
     Without this, running the suite on the operator's own machine would pick
     up their real keys from the environment. Tests must be hermetic.
+
+    `ANTHROPIC_API_KEY` is on the list for the same reason as the broker keys,
+    and it is easy to overlook: with a key present, `build_provider()` returns
+    the real Claude provider, so a test that exercised the Assistant Agent
+    would make a paid network call. Removing it here means the assistant
+    always resolves to `NullProvider` under test unless a test deliberately
+    injects a stub.
     """
     for name in (
         "ALPACA_API_KEY",
@@ -58,6 +65,10 @@ def _no_real_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
         "ATLAS_TRADING_MODE",
         "ATLAS_LIVE_TRADING_ENABLED",
         "ATLAS_MANUAL_LIVE_CONFIRMATION",
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "ATLAS_AI_PROVIDER",
+        "ATLAS_AI_MODEL",
     ):
         monkeypatch.delenv(name, raising=False)
 

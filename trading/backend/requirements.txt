@@ -28,3 +28,11 @@ alembic>=1.13            # schema migrations, ready for the move to Postgres
 
 # --- http client -------------------------------------------------------------
 httpx>=0.27
+
+# --- the AI assistant --------------------------------------------------------
+# Optional at runtime: ATLAS starts, runs and passes its tests without this
+# package and without an API key (see app/ai/factory.py, which falls back to
+# deterministic answers built from ATLAS's own figures). It is installed by
+# default so that adding ANTHROPIC_API_KEY to .env is the only step needed to
+# turn the assistant on.
+anthropic>=0.69

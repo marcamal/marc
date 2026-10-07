@@ -105,6 +105,20 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="", alias="OPENAI_API_KEY")
     sec_user_agent: str = Field(default="", alias="SEC_USER_AGENT")
 
+    # --- the AI assistant ----------------------------------------------------
+    # Entirely optional. With no key ATLAS answers from its own figures; see
+    # `app.ai.factory`. The model never gets tools, credentials or a path to
+    # an order, so these settings cannot widen what the AI is able to do.
+    ai_provider: str = Field(default="auto", alias="ATLAS_AI_PROVIDER")
+    ai_model: str = Field(default="", alias="ATLAS_AI_MODEL")
+    #: low | medium | high | xhigh | max. Higher means more reasoning, more
+    #: tokens and more money per answer.
+    ai_effort: str = Field(default="medium", alias="ATLAS_AI_EFFORT")
+    ai_max_tokens: int = Field(default=2000, ge=256, le=32000, alias="ATLAS_AI_MAX_TOKENS")
+    #: A hard stop on spend. The assistant refuses once the session total
+    #: passes this, so a runaway loop cannot quietly cost real money.
+    ai_session_budget_usd: float = Field(default=2.00, ge=0.0, alias="ATLAS_AI_SESSION_BUDGET_USD")
+
     # ------------------------------------------------------------------ #
     # validators
     # ------------------------------------------------------------------ #
@@ -199,6 +213,20 @@ class Settings(BaseSettings):
         if self.stock_data_feed is StockDataFeed.SIP and not self.has_paid_data_plan:
             return StockDataFeed.IEX
         return self.stock_data_feed
+
+    @property
+    def has_ai_credentials(self) -> bool:
+        return bool(self.anthropic_api_key.strip())
+
+    @property
+    def effective_ai_effort(self) -> str:
+        """A validated effort level.
+
+        An unknown value falls back to `medium` rather than erroring: a typo
+        in an optional setting should not make the assistant unusable.
+        """
+        level = self.ai_effort.strip().lower()
+        return level if level in ("low", "medium", "high", "xhigh", "max") else "medium"
 
     @property
     def effective_max_stream_symbols(self) -> int:

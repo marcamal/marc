@@ -135,6 +135,8 @@ def create_app() -> FastAPI:
                 "risk": "/api/risk/status",
                 "risk_check": "POST /api/risk/check",
                 "journal": "/api/journal",
+                "assistant": "POST /api/assistant/ask",
+                "assistant_status": "/api/assistant/status",
                 "websocket": "/ws/events",
             },
         }
