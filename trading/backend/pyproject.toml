@@ -1,0 +1,60 @@
+[project]
+name = "atlas-backend"
+version = "0.1.0"
+description = "ATLAS — personal AI trading and investment operating system"
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# asyncio_mode = "auto" means async test functions need no decorator.
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = "-q --strict-markers"
+filterwarnings = [
+    # An un-awaited coroutine is a real bug (it silently drops work), so make
+    # it fail the suite rather than printing a warning nobody reads.
+    "error::RuntimeWarning",
+]
+markers = [
+    "integration: tests that exercise several components together",
+    "adversarial: tests that deliberately try to defeat a safety control",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "C4", "SIM", "RUF"]
+ignore = [
+    "E501",    # line length is handled by the formatter
+    "B008",    # FastAPI's Depends() in defaults is the documented pattern
+    "RUF012",  # mutable class attrs are intentional on the Agent contract
+
+    # `class Side(str, Enum)` is the pydantic-friendly idiom: the members
+    # serialise as plain strings in JSON without a custom encoder. StrEnum
+    # would also work but changes `repr` and comparison subtleties, so the
+    # explicit mixin stays.
+    "UP042",
+
+    # `Agent` is an ABC whose on_start/on_stop/run_cycle/handle_event are
+    # OPTIONAL hooks with no-op defaults — an agent may be purely periodic or
+    # purely event-driven. Marking them @abstractmethod would force every
+    # subclass to implement all four.
+    "B024",
+    "B027",
+
+    # `OrderRejected` and `DuplicateOrder` describe broker outcomes and read
+    # better without an "Error" suffix at the call site.
+    "N818",
+
+    # `try/except/pass` around an awaited task cancellation is clearer in
+    # context than wrapping the await in contextlib.suppress.
+    "SIM105",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802", "N806", "SIM117"]
+
+[tool.ruff.format]
+quote-style = "double"

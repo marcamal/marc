@@ -1,0 +1,136 @@
+# =============================================================================
+# SCANNER CONFIGURATION  —  the Market Scanner Agent reads this file.
+# =============================================================================
+# The scanner ranks candidates. It NEVER trades them. Its output is a list of
+# ScannerResult objects that research and strategy agents may look at.
+# =============================================================================
+
+# How often a full scan cycle runs, in seconds.
+scan_interval_seconds: 60
+
+# Bars used to compute the metrics below.
+lookback:
+  timeframe: 5Min
+  bars: 120          # 120 x 5min = 10 trading hours of context
+  daily_bars: 60     # for ATR, average volume, relative volume baselines
+
+
+# --- universes ---------------------------------------------------------------
+# NOTE ON THE FREE DATA PLAN:
+# Alpaca's free plan allows 30 symbols on one websocket connection. The
+# "active" universe below is therefore kept at or under 30 symbols. Historical
+# (REST) scans are not limited this way, so a wider universe is fine for
+# periodic scans — but streaming only covers `active`.
+active: core_watchlist
+
+universes:
+  # Small, liquid, and inside the 30-symbol streaming budget. The default.
+  core_watchlist:
+    - SPY
+    - QQQ
+    - IWM
+    - NVDA
+    - AMD
+    - AVGO
+    - MSFT
+    - AAPL
+    - GOOGL
+    - AMZN
+    - META
+    - TSLA
+    - SMH
+    - GRID
+    - CIBR
+    - ITA
+    - ICLN
+    - XBI
+    - URA
+    - BOTZ
+    - PAVE
+    - VRT          # Vertiv — data-centre cooling
+    - TT           # Trane Technologies — HVAC
+    - CARR         # Carrier — HVAC
+    - JCI          # Johnson Controls — building systems
+    - ETN          # Eaton — electrification
+    - VOO
+    - VXUS
+    - BND
+    - GLD
+
+  # Long-term core holdings only. Used by the investing side, not day trading.
+  long_term_core:
+    - VOO
+    - VXUS
+    - BND
+
+  # Sector / thematic ETFs for rotation research.
+  sector_etfs:
+    - XLK
+    - XLF
+    - XLE
+    - XLV
+    - XLI
+    - XLY
+    - XLP
+    - XLU
+    - XLB
+    - XLRE
+    - XLC
+
+  # Crypto. Alpaca crypto availability depends on your account and country —
+  # ATLAS detects this at runtime instead of assuming. See /api/system/capabilities.
+  crypto:
+    - BTC/USD
+    - ETH/USD
+
+
+# --- metrics computed per symbol --------------------------------------------
+# Each enabled metric becomes a field on the ScannerResult.
+metrics:
+  percent_change: true
+  volume: true
+  relative_volume: true
+  atr: true
+  atr_percent: true
+  volatility: true
+  spread_percent: true
+  distance_from_vwap_pct: true
+  ema_stack: true          # is price > EMA20 > EMA50 ?
+  rsi: true
+  momentum: true
+
+
+# --- indicator periods ------------------------------------------------------
+indicators:
+  ema_fast: 20
+  ema_slow: 50
+  sma_long: 200
+  rsi_period: 14
+  atr_period: 14
+  bollinger_period: 20
+  bollinger_std: 2.0
+  momentum_period: 10
+
+
+# --- filters: a symbol must pass all of these to be ranked ------------------
+filters:
+  min_price: 5.0
+  max_price: 2000.0
+  min_volume: 300000
+  max_spread_percent: 1.0
+  exclude_halted: true
+
+
+# --- ranking ----------------------------------------------------------------
+# Final score is the weighted sum of normalised metric scores.
+# Weights do not have to add up to 1; they are normalised internally.
+ranking:
+  weights:
+    relative_volume: 0.30
+    momentum: 0.25
+    percent_change: 0.20
+    ema_stack: 0.15
+    distance_from_vwap_pct: 0.10
+  max_results: 20
+  # Candidates scoring below this are dropped entirely.
+  min_score: 0.0

@@ -1,0 +1,111 @@
+# =============================================================================
+# RISK CONFIGURATION  —  the Risk Agent reads this file.
+# =============================================================================
+# These are DELIBERATELY CONSERVATIVE development defaults.
+# The Risk Agent has veto power over every single order. These numbers are
+# enforced in deterministic Python code (backend/app/risk/rules.py).
+# No AI model, prompt, or strategy can raise them at runtime.
+#
+# "pct" values are percentages, so 0.5 means 0.5%, not 50%.
+# =============================================================================
+
+# --- per-trade limits --------------------------------------------------------
+# How much of total account equity you are willing to LOSE on one trade
+# if the stop is hit. This is the core of position sizing.
+max_risk_per_trade_pct: 0.5
+
+# Maximum size of a single position as a % of equity, regardless of stop distance.
+max_position_pct: 5.0
+
+# Reject any order whose notional value is above this, in account currency (USD).
+max_order_notional: 2000.0
+
+# Reject orders below this notional — avoids pointless commission-less dust.
+min_order_notional: 10.0
+
+
+# --- daily limits ------------------------------------------------------------
+# If realised + unrealised P&L for the day drops below this % of starting
+# equity, the kill switch engages automatically.
+max_daily_loss_pct: 2.0
+
+# Maximum number of NEW orders ATLAS may submit in one day. A hard circuit
+# breaker against runaway loops — the most common way automated systems
+# destroy an account.
+max_orders_per_day: 20
+
+# Maximum orders for the same symbol per day (anti-churn, and German tax:
+# every realised gain is taxable at ~26.375%).
+max_orders_per_symbol_per_day: 3
+
+
+# --- portfolio limits --------------------------------------------------------
+max_portfolio_drawdown_pct: 10.0   # from the all-time-high equity watermark
+max_total_exposure_pct: 60.0       # sum of all position values / equity
+max_sector_exposure_pct: 25.0      # per GICS-ish sector bucket
+max_correlated_exposure_pct: 30.0  # per correlation group (see groups below)
+max_open_positions: 8
+max_leverage: 1.0                  # 1.0 = cash only, no margin. Keep it here.
+
+
+# --- market quality gates ----------------------------------------------------
+# Orders are rejected if the market for the symbol looks untradeable.
+min_average_volume: 500000         # average daily shares
+max_spread_pct: 0.5                # (ask - bid) / mid, in percent
+max_data_staleness_seconds: 60     # refuse to trade on stale quotes
+require_market_open: true          # no orders outside regular hours in MVP
+
+
+# --- correlation groups ------------------------------------------------------
+# Crude but useful: positions in the same group count toward one exposure cap.
+# Expand this over time; a proper correlation matrix comes in Phase 3.
+correlation_groups:
+  us_broad_index: [SPY, VOO, IVV, QQQ, DIA, IWM, VTI]
+  semiconductors: [SMH, SOXX, NVDA, AMD, AVGO, TSM, INTC, MU, ASML]
+  big_tech: [AAPL, MSFT, GOOGL, AMZN, META, NFLX]
+  energy_power: [GRID, XLE, ETN, VRT, PWR]
+  hvac_cooling: [VRT, TT, CARR, JCI]          # Marc's domain-knowledge basket
+  crypto_majors: [BTC/USD, ETH/USD]
+  bonds: [BND, AGG, TLT, IEF, SHY]
+
+
+# --- kill switch -------------------------------------------------------------
+kill_switch:
+  # A file at this path (relative to the project root) blocks ALL trading
+  # while it exists. Create it to stop everything instantly; delete to resume.
+  # This works even if the API or the UI is down.
+  file_path: data/KILL_SWITCH
+
+  # What happens when the kill switch engages:
+  block_new_orders: true      # always true, not configurable
+  cancel_open_orders: true    # cancel resting orders that have not filled
+  flatten_positions: false    # DO NOT enable casually: this market-sells
+                              # everything you hold, locking in losses.
+
+  # Conditions that engage the kill switch automatically.
+  auto_triggers:
+    daily_loss_breached: true
+    portfolio_drawdown_breached: true
+    broker_reconciliation_mismatch: true
+    data_feed_dead: true
+    repeated_order_rejections: true
+  repeated_rejection_threshold: 5   # consecutive broker rejections
+
+
+# --- proposal hygiene --------------------------------------------------------
+# A TradeProposal missing any of these fields is rejected outright, before
+# any numeric check runs. See tests/test_risk_bypass.py.
+required_proposal_fields:
+  - symbol
+  - side
+  - strategy_id
+  - entry_price
+  - stop_price
+  - quantity
+  - created_at
+
+# Reject proposals whose risk/reward is worse than this.
+min_reward_risk_ratio: 1.5
+
+# A proposal older than this is considered stale and rejected.
+max_proposal_age_seconds: 300

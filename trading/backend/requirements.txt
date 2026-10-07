@@ -1,0 +1,30 @@
+# ATLAS backend dependencies.
+# Install with:  pip install -r requirements.txt
+#
+# Pinned with ">=" lower bounds rather than "==" so that security patches
+# arrive automatically. If a future release ever breaks the build, pin the
+# exact version here and note why.
+
+# --- web framework -----------------------------------------------------------
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# --- configuration / validation ---------------------------------------------
+pydantic>=2.8
+pydantic-settings>=2.4
+PyYAML>=6.0
+
+# --- broker + market data ----------------------------------------------------
+# Official Alpaca Python SDK. Pulls in websockets, msgpack, pandas, numpy.
+alpaca-py>=0.42
+
+# --- database ----------------------------------------------------------------
+# The [asyncio] extra pulls in greenlet, which SQLAlchemy's async support
+# requires. Plain "SQLAlchemy" installs but fails at import time.
+SQLAlchemy[asyncio]>=2.0
+aiosqlite>=0.20          # async SQLite driver (the MVP default)
+alembic>=1.13            # schema migrations, ready for the move to Postgres
+# psycopg[binary]>=3.2   # uncomment when you switch to PostgreSQL
+
+# --- http client -------------------------------------------------------------
+httpx>=0.27

@@ -1,0 +1,64 @@
+# =============================================================================
+# STRATEGY CONFIGURATION
+# =============================================================================
+# EVERY strategy ships DISABLED. You must turn one on explicitly, either here
+# or from the Strategies page in the dashboard.
+#
+# A strategy being enabled does NOT mean it is profitable. The one strategy
+# below exists to prove the pipeline works end to end:
+#
+#   market data -> signal -> trade proposal -> RISK CHECK -> paper order
+#
+# Nothing here has been backtested yet. Treat every number as a placeholder
+# until the backtesting engine (Phase 2) has produced out-of-sample results.
+# =============================================================================
+
+# Global brake: while false, NO strategy may produce proposals, whatever its
+# own "enabled" flag says. Belt and braces.
+strategies_globally_enabled: false
+
+strategies:
+  - id: ema_vwap_momentum_v1
+    name: "EMA + VWAP Momentum"
+    module: app.strategies.ema_vwap_momentum
+    class: EmaVwapMomentumStrategy
+    enabled: false              # <-- you must flip this yourself
+    description: >
+      Long-only intraday continuation. Looks for price above the session VWAP
+      with a rising short EMA above a longer EMA, momentum confirmation, and
+      RSI not yet overbought. Exits on a stop below the recent swing low.
+      Architecture-validation strategy, not a proven edge.
+
+    # Which symbols this strategy is allowed to look at. Must be a subset of
+    # a universe in scanner.yaml, or explicit symbols.
+    symbols: [SPY, QQQ, NVDA, MSFT]
+    timeframe: 5Min
+
+    params:
+      ema_fast: 20
+      ema_slow: 50
+      rsi_period: 14
+      rsi_max: 70.0             # do not buy into an overbought print
+      atr_period: 14
+      min_volume: 500000
+      min_relative_volume: 1.2  # needs above-average participation
+      momentum_lookback: 10
+      # Stop = swing low over this many bars, minus a small ATR buffer.
+      swing_lookback: 10
+      stop_atr_buffer: 0.25
+      # Target = entry + (risk * this). Must clear risk.yaml min_reward_risk_ratio.
+      reward_risk_ratio: 2.0
+
+    # Strategy-level risk caps. The Risk Agent applies the STRICTER of these
+    # and the global limits in risk.yaml. A strategy can only ever be more
+    # conservative than the global config, never less.
+    risk:
+      max_risk_per_trade_pct: 0.25
+      max_concurrent_positions: 2
+      max_orders_per_day: 4
+      # Only trade in this window, exchange local time (America/New_York).
+      # Avoids the opening auction chaos and the closing imbalance.
+      session_start: "10:00"
+      session_end: "15:30"
+      # Flatten any position opened by this strategy before the close.
+      close_before_market_close_minutes: 20

@@ -1,0 +1,111 @@
+# =============================================================================
+# AGENT CONFIGURATION
+# =============================================================================
+# Each entry configures one agent instance. The AgentManager reads this file
+# at startup, builds the agents, and supervises them.
+#
+# "autostart: false" means the agent is registered and visible in the
+# dashboard but idle until you start it.
+# =============================================================================
+
+# How often the AgentManager checks every agent's heartbeat.
+health_check_interval_seconds: 15
+
+# An agent that has not produced a heartbeat in this long is marked UNHEALTHY.
+heartbeat_timeout_seconds: 90
+
+# Max lines of per-agent log kept in memory for the dashboard.
+log_buffer_size: 200
+
+agents:
+  - id: orchestrator
+    name: "Orchestrator"
+    role: "Coordinates the other agents, aggregates findings, watches agent health."
+    type: orchestrator
+    autostart: true
+    config:
+      research_cycle_seconds: 300
+
+  - id: market_data
+    name: "Market Data"
+    role: "Owns the single Alpaca websocket connection and normalises every tick into the event bus."
+    type: market_data
+    autostart: true
+    config:
+      # Which stream subscriptions to open. Bars are cheap, trades are noisy.
+      subscribe_bars: true
+      subscribe_quotes: true
+      subscribe_trades: false
+      # Warn if no market data arrives for this long while the market is open.
+      staleness_warning_seconds: 120
+      reconnect_initial_delay_seconds: 1
+      reconnect_max_delay_seconds: 60
+
+  - id: portfolio
+    name: "Portfolio"
+    role: "Mirrors the broker's account, positions and P&L. Broker state always wins."
+    type: portfolio
+    autostart: true
+    config:
+      reconcile_interval_seconds: 30
+      snapshot_interval_seconds: 300
+
+  - id: scanner
+    name: "Market Scanner"
+    role: "Ranks the configured universe by relative volume, momentum and trend. Never trades."
+    type: scanner
+    autostart: false
+    config:
+      # scan_interval_seconds and the universe come from scanner.yaml
+      publish_top_n: 10
+
+  - id: technical
+    name: "Technical Analysis"
+    role: "Multi-timeframe indicator and price-structure analysis for requested symbols."
+    type: technical
+    autostart: false
+    config:
+      timeframes: [5Min, 15Min, 1Hour, 1Day]
+      # Only analyse symbols the scanner surfaced, to avoid wasted API calls.
+      follow_scanner: true
+
+  - id: strategy
+    name: "Strategy Runner"
+    role: "Runs enabled strategies and publishes their trade proposals. Never places orders."
+    type: strategy
+    autostart: false
+    config:
+      evaluate_interval_seconds: 60
+
+  - id: risk
+    name: "Risk Officer"
+    role: "VETO POWER. Validates every trade proposal against risk.yaml. Owns the kill switch."
+    type: risk
+    autostart: true          # always on: nothing may trade without it
+    config:
+      # If the Risk Agent is not running, the Execution Agent refuses to act.
+      # This is enforced in code and cannot be configured away.
+      fail_closed: true
+
+  - id: execution
+    name: "Execution"
+    role: "The ONLY component permitted to send orders to Alpaca. Handles fills, retries, idempotency."
+    type: execution
+    autostart: true
+    config:
+      # Retry policy for transient network failures. Retries reuse the same
+      # client_order_id, so a retry can never create a duplicate position.
+      max_submit_retries: 3
+      retry_backoff_seconds: 2
+      # How long to wait for a broker acknowledgement before flagging an alert.
+      ack_timeout_seconds: 10
+
+  - id: mentor
+    name: "Mentor"
+    role: "Explains what happened and why, and writes a review after every closed trade."
+    type: mentor
+    autostart: true
+    config:
+      explain_signals: true
+      explain_rejections: true
+      write_trade_reviews: true
