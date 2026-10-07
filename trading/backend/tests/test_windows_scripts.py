@@ -5,8 +5,8 @@ This file exists because of a real bug that reached the operator.
 `Start-ATLAS.ps1` had an ASCII-art banner drawn with Unicode box characters.
 The file was UTF-8 **without a BOM**, and **Windows PowerShell 5.1 reads a
 BOM-less file using the system ANSI codepage**, not UTF-8. On a Western
-European Windows that is Windows-1252, so the three bytes of `║` (U+2551 =
-`E2 95 91`) were decoded as three separate characters — and the last of them,
+European Windows that is Windows-1252, so the three bytes of `U+2551` (U+2551 =
+`E2 95 91`) were decoded as three separate characters  -  and the last of them,
 byte `0x91`, is U+2018 LEFT SINGLE QUOTATION MARK.
 
 PowerShell accepts smart quotes as string delimiters. That stray `'` opened a
@@ -23,7 +23,7 @@ decodes identically under UTF-8, Windows-1252, and every other codepage a
 Windows machine is likely to use, with or without a BOM.
 
 If you want a box-drawing banner back, add a UTF-8 BOM to the file *and* test
-it on Windows PowerShell 5.1 — not just PowerShell 7, which assumes UTF-8 and
+it on Windows PowerShell 5.1  -  not just PowerShell 7, which assumes UTF-8 and
 will not reproduce the failure.
 """
 
@@ -44,9 +44,7 @@ def _windows_scripts() -> list[Path]:
     for pattern in SCRIPT_PATTERNS:
         found.extend(PROJECT_ROOT.rglob(pattern))
     return sorted(
-        path
-        for path in found
-        if "node_modules" not in path.parts and ".venv" not in path.parts
+        path for path in found if "node_modules" not in path.parts and ".venv" not in path.parts
     )
 
 
@@ -55,7 +53,7 @@ def test_scripts_exist() -> None:
     scripts = _windows_scripts()
     names = {p.name for p in scripts}
 
-    assert scripts, "no Windows scripts found — has the project layout changed?"
+    assert scripts, "no Windows scripts found  -  has the project layout changed?"
     for required in ("Start-ATLAS.ps1", "setup.ps1", "Check-Setup.ps1"):
         assert required in names, f"{required} is missing"
 
@@ -76,7 +74,7 @@ def test_script_is_pure_ascii(script: Path) -> None:
             f"  ...{snippet}...\n"
             f"Windows PowerShell 5.1 decodes a BOM-less file as Windows-1252, "
             f"which can turn these bytes into smart quotes and break parsing. "
-            f"Use plain ASCII: '-' not '—', and ASCII art not box-drawing."
+            f"Use plain ASCII: a hyphen rather than an em dash, and ASCII art rather than box-drawing characters."
         )
 
 
@@ -105,13 +103,17 @@ def test_script_has_no_smart_quotes(script: Path) -> None:
     """Smart quotes are string delimiters in PowerShell, not decoration."""
     text = script.read_text(encoding="utf-8", errors="replace")
 
-    for char, name in (
-        ("‘", "left single"),
-        ("’", "right single"),
-        ("“", "left double"),
-        ("”", "right double"),
+    # Built with chr() rather than written literally: the formatter rewrites a
+    # "U+2018" escape into the character itself, which then trips the linter's
+    # ambiguous-character rule. The codepoint is also the clearer thing to read
+    # here, since the codepoint is exactly what matters.
+    for codepoint, name in (
+        (0x2018, "left single"),
+        (0x2019, "right single"),
+        (0x201C, "left double"),
+        (0x201D, "right double"),
     ):
-        assert char not in text, (
-            f"{script.name} contains a {name} smart quote. PowerShell treats "
-            f"these as string delimiters, so they break parsing."
+        assert chr(codepoint) not in text, (
+            f"{script.name} contains a {name} smart quote (U+{codepoint:04X}). "
+            f"PowerShell treats these as string delimiters, so they break parsing."
         )
