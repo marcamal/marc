@@ -1,5 +1,5 @@
 # =============================================================================
-# ATLAS — start the backend.
+# ATLAS  -  start the backend.
 #
 #   .\scripts\start-backend.ps1
 #
@@ -20,7 +20,7 @@ if (-not (Test-Path $venvPython)) {
 
 if (-not (Test-Path (Join-Path $root ".env"))) {
     Write-Host ""
-    Write-Host "  No .env file — ATLAS will run on simulated data." -ForegroundColor Yellow
+    Write-Host "  No .env file  -  ATLAS will run on simulated data." -ForegroundColor Yellow
     Write-Host "  Copy .env.example to .env and add your Alpaca paper keys to connect." -ForegroundColor Yellow
     Write-Host ""
 }

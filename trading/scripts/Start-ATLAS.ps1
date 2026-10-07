@@ -1,5 +1,5 @@
 # =============================================================================
-# ATLAS — one-click launcher.
+# ATLAS  -  one-click launcher.
 #
 # Double-click "Start ATLAS.bat", or the desktop icon, and this does
 # everything: first-time setup if needed, starts the backend, starts the
@@ -70,12 +70,11 @@ function Stop-Atlas {
 
 Clear-Host
 Write-Host ""
-Write-Host "   █████╗ ████████╗██╗      █████╗ ███████╗" -ForegroundColor Blue
-Write-Host "  ██╔══██╗╚══██╔══╝██║     ██╔══██╗██╔════╝" -ForegroundColor Blue
-Write-Host "  ███████║   ██║   ██║     ███████║███████╗" -ForegroundColor Blue
-Write-Host "  ██╔══██║   ██║   ██║     ██╔══██║╚════██║" -ForegroundColor Blue
-Write-Host "  ██║  ██║   ██║   ███████╗██║  ██║███████║" -ForegroundColor Blue
-Write-Host "  ╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝╚══════╝" -ForegroundColor Blue
+Write-Host "      /\   _____ _      ___    ____  " -ForegroundColor Blue
+Write-Host "     /  \  |_   _| |    /   |  / ___| " -ForegroundColor Blue
+Write-Host "    / /\ \   | | | |   / /| |  \___ \ " -ForegroundColor Blue
+Write-Host "   / ____ \  | | | |__/ ___ |_  ___) |" -ForegroundColor Blue
+Write-Host "  /_/    \_\ |_| |____/_/  |_| |____/ " -ForegroundColor Blue
 Write-Host "   personal trading and research system" -ForegroundColor DarkGray
 Write-Host ""
 
@@ -117,7 +116,7 @@ try {
     Write-Ok "Node.js $nodeVersion"
 } catch {
     $hasNode = $false
-    Write-Warn "Node.js not found — the dashboard needs it."
+    Write-Warn "Node.js not found  -  the dashboard needs it."
     Write-Host "       Install the LTS build from https://nodejs.org/ and run this again."
     Write-Host "       (The backend will still start, so the API works.)"
 }
@@ -126,7 +125,7 @@ try {
 
 if (-not (Test-Path $venvPython)) {
     Write-Host ""
-    Write-Step "First run — setting up. This takes a few minutes, only once."
+    Write-Step "First run  -  setting up. This takes a few minutes, only once."
     Write-Host ""
     & (Join-Path $PSScriptRoot "setup.ps1")
     if (-not (Test-Path $venvPython)) {
@@ -148,7 +147,7 @@ if ($hasNode -and -not (Test-Path (Join-Path $frontend "node_modules"))) {
 
 if (-not (Test-Path (Join-Path $root ".env"))) {
     Copy-Item (Join-Path $root ".env.example") (Join-Path $root ".env")
-    Write-Warn "Created .env — ATLAS will run on SIMULATED data until you add Alpaca keys."
+    Write-Warn "Created .env  -  ATLAS will run on SIMULATED data until you add Alpaca keys."
 }
 
 # --- stop everything cleanly when this window closes -------------------------
@@ -208,7 +207,7 @@ Write-Host "   Dashboard :  $FrontendUrl"
 Write-Host "   API docs  :  $BackendUrl/docs"
 Write-Host "   Mode      :  $mode" -NoNewline
 if ($simulated) {
-    Write-Host "  (simulated data — no Alpaca keys yet)" -ForegroundColor Yellow
+    Write-Host "  (simulated data  -  no Alpaca keys yet)" -ForegroundColor Yellow
 } else {
     Write-Host "  (connected to Alpaca paper trading)" -ForegroundColor Green
 }

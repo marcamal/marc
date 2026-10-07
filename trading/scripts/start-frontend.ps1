@@ -1,5 +1,5 @@
 # =============================================================================
-# ATLAS — start the dashboard.
+# ATLAS  -  start the dashboard.
 #
 #   .\scripts\start-frontend.ps1
 #

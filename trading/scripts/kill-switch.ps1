@@ -1,5 +1,5 @@
 # =============================================================================
-# ATLAS — emergency stop from the command line.
+# ATLAS  -  emergency stop from the command line.
 #
 #   .\scripts\kill-switch.ps1          engage (stop all trading)
 #   .\scripts\kill-switch.ps1 -Release resume

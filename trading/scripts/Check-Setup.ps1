@@ -1,5 +1,5 @@
 # =============================================================================
-# ATLAS — setup check.
+# ATLAS  -  setup check.
 #
 # Run this when something will not start. It checks everything ATLAS needs and
 # tells you exactly what is missing and how to fix it, instead of failing with

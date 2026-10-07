@@ -1,5 +1,5 @@
 # =============================================================================
-# ATLAS — one-time setup for Windows.
+# ATLAS  -  one-time setup for Windows.
 #
 #   .\scripts\setup.ps1
 #
@@ -72,7 +72,7 @@ try {
     Pop-Location
     Write-Host "      Done."
 } catch {
-    Write-Host "      Node.js was not found — skipping the dashboard." -ForegroundColor Yellow
+    Write-Host "      Node.js was not found  -  skipping the dashboard." -ForegroundColor Yellow
     Write-Host "      Install the LTS build from https://nodejs.org/ and re-run this script."
 }
 

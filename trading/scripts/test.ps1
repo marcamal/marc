@@ -1,5 +1,5 @@
 # =============================================================================
-# ATLAS — run the test suite.
+# ATLAS  -  run the test suite.
 #
 #   .\scripts\test.ps1              all tests
 #   .\scripts\test.ps1 -Coverage    with a coverage report
